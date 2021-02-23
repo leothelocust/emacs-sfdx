@@ -14,7 +14,10 @@ Emacs transient wrapper for some basic SFDX CLI commands like deploy and retriev
 ;; in config.el
 (use-package! emacs-sfdx
   :commands (sfdx/transient-action sfdx/next-component-file)
-  :bind ("C-x C-l s" . #'sfdx/transient-action))
+  :bind (
+    ("C-x C-l s" . #'sfdx/transient-action)
+    ("C-<iso-lefttab>" . #'sfdx/next-component-file)
+    ))
 ```
 ### via use-package & straight
 ```elisp
@@ -24,8 +27,11 @@ Emacs transient wrapper for some basic SFDX CLI commands like deploy and retriev
              :host github
              :repo "leothelocust/emacs-sfdx"
              :branch "main")
-  :commands sfdx/transient-action
-  :bind ("C-x C-l s" . sfdx/transient-action))
+  :commands (sfdx/transient-action sfdx/next-component-file)
+  :bind (
+    ("C-x C-l s" . #'sfdx/transient-action)
+    ("C-<iso-lefttab>" . #'sfdx/next-component-file)
+    ))
 ```
 
 ## Screenshots
