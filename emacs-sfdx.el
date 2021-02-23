@@ -125,7 +125,7 @@
                     (sfdx--deploy nil current-folder))
               ;; In a component, deploy component.
               ;; (message "Deploying Component...")
-              (sfdx--deploy t current-folder)))
+              (sfdx--deploy nil current-folder)))
 
       (prog1
           ;; Are we in a project?
