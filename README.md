@@ -12,10 +12,9 @@ Emacs transient wrapper for some basic SFDX CLI commands like deploy and retriev
            :files ("*.el")))
            
 ;; in config.el
-(map! :map global-map
-      "C-x C-l s"     #'sfdx/transient-action
-      ;;...
-      )
+(use-package! emacs-sfdx
+  :commands (sfdx/transient-action sfdx/next-component-file)
+  :bind ("C-x C-l s" . #'sfdx/transient-action))
 ```
 ### via use-package & straight
 ```elisp
