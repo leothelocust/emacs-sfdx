@@ -1,4 +1,4 @@
-;;; sfdx --- Emacs wrapper for basic sfdx cli commands
+;;; emacs-sfdx --- Emacs wrapper for basic sfdx cli commands
 
 ;;; Commentary:
 
@@ -189,5 +189,5 @@
   ["Download Component"
    ("f" "fetch by component name"   sfdx/fetch-component)])
 
-(provide 'sfdx)
-;;; sfdx.el ends here
+(provide 'emacs-sfdx)
+;;; emacs-sfdx.el ends here
