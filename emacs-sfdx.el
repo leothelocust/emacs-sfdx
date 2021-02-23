@@ -92,7 +92,7 @@
         (output-path (concat (locate-dominating-file buffer-file-name "force-app") "force-app/main/default")))
     (if component
         (sfdx/exec-process (format "sh -c \"cd %s; sfdx force:source:deploy --sourcepath ./force-app/main/default/lwc/%s --loglevel fatal\"" cd-dir comp-name) "sfdx:deploy_component" t)
-      (sfdx/exec-process (format "sh -c \"cd %s; sfdx force:source:deploy --sourcepath ./force-app/main/default/ --loglevel fatal\"" cd-dir) "sfdx:deploy_project" t))))
+      (sfdx/exec-process (format "sh -c \"cd %s; sfdx force:source:deploy --sourcepath ./force-app/main/default/%s --loglevel fatal\"" cd-dir comp-name) "sfdx:deploy_project" t))))
 
 (defun sfdx--retrieve (component comp-name)
   "Internal function to retrieve COMP-NAME asyncronously or whole project if COMPONENT is nil after validations."
@@ -131,8 +131,8 @@
           ;; Are we in a project?
           (if (locate-dominating-file buffer-file-name "force-app")
               (prog1
-                  ;; In project, deploy project.
-                  ;; (message "Deploying Project...")
+                  ;; In project, deploy folder.
+                  ;; (message "Deploying folder...")
                   (sfdx--deploy nil current-folder))
             (prog1
                 ;; Not in an SFDX project.
