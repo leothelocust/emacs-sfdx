@@ -36,8 +36,7 @@
 
 (defun sfdx--goto-project (project-path)
   "Internal function to load the PROJECT-PATH in current window."
-  ;; DEBUG - this isn't working to auto-open the folder.
-  ;; (find-file project-path)
+  (find-file project-path)
   (message project-path))
 
 (defun sfdx/exec-process (cmd name &optional comint)
@@ -45,6 +44,9 @@
   (let ((compilation-buffer-name-function
          (lambda (mode)
            (format "*%s*" name))))
+    (split-window-below (floor (* (window-size nil nil) .75)))
+    (other-window 1)
+    (switch-to-buffer (format "*%s*" name))
     (message (concat "Running " cmd))
     (compile cmd comint)))
 
@@ -56,7 +58,18 @@
         (project-name (read-string "Project Name: "))
         (project-dir (read-directory-name "Directory: " "~/Projects"))
         )
-    (async-start-process process "sh" `(lambda (result) (sfdx--goto-project (concat (expand-file-name ',project-dir) ',project-name))) "-c" (concat "sfdx force:project:create --projectname " project-name " --outputdir " (expand-file-name project-dir) " --template standard"))
+    (async-start-process process
+                         "sh"
+                         `(lambda (result)
+                            (sfdx--goto-project
+                             (concat (expand-file-name ',project-dir) ',project-name)))
+                         "-c"
+                         (concat
+                          "sfdx force:project:create --projectname "
+                          project-name
+                          " --outputdir "
+                          (expand-file-name project-dir)
+                          " --manifest"))
     ))
 
 (defun sfdx/create-component ()
@@ -76,7 +89,7 @@
   (interactive)
   (if (locate-dominating-file buffer-file-name "force-app")
       (let ((process "sfdx-fetch-component")
-            (cd-dir (concat (locate-dominating-file buffer-file-name "force-app") "force-app/main/default/lwc/"))
+            (cd-dir default-directory) ;(concat (locate-dominating-file buffer-file-name "force-app") "force-app/main/default/lwc/")
             (comp-name (read-string "Component Name: "))
             )
         (sfdx/exec-process (format "sh -c \"cd %s; sfdx force:source:retrieve -m LightningComponentBundle:%s\"" cd-dir comp-name) "sfdx:retrieve_component" t)
@@ -88,11 +101,10 @@
   "Internal function to deploy COMP-NAME asyncronously or whole project if COMPONENT is nil after validations."
   (let ((process "sfdx-deploy")
         (buffer "*sfdx-output*")
-        (cd-dir (expand-file-name (locate-dominating-file buffer-file-name "force-app")))
-        (output-path (concat (locate-dominating-file buffer-file-name "force-app") "force-app/main/default")))
+        (cd-dir (expand-file-name (locate-dominating-file buffer-file-name "force-app"))))
     (if component
         (sfdx/exec-process (format "sh -c \"cd %s; sfdx force:source:deploy --sourcepath ./force-app/main/default/lwc/%s --loglevel fatal\"" cd-dir comp-name) "sfdx:deploy_component" t)
-      (sfdx/exec-process (format "sh -c \"cd %s; sfdx force:source:deploy --sourcepath ./force-app/main/default/%s --loglevel fatal\"" cd-dir comp-name) "sfdx:deploy_project" t))))
+      (sfdx/exec-process (format "sh -c \"cd %s; sfdx force:source:deploy --sourcepath ./%s --loglevel fatal\"" cd-dir comp-name) "sfdx:deploy_project" t))))
 
 (defun sfdx--retrieve (component comp-name)
   "Internal function to retrieve COMP-NAME asyncronously or whole project if COMPONENT is nil after validations."
@@ -104,7 +116,7 @@
         (sfdx/exec-process (format "sh -c \"cd %s; sfdx force:source:retrieve --sourcepath ./force-app/main/default/lwc/%s --loglevel fatal\"" cd-dir comp-name) "sfdx:retrieve_component" t)
       (progn
         (if (yes-or-no-p "Are you sure? This will completely overwrite any local changes! ")
-            (sfdx/exec-process (format "sh -c \"cd %s; sfdx force:source:retrieve --sourcepath ./force-app/main/default/ --loglevel fatal\"" cd-dir) "sfdx:retrieve_project" t)
+            (sfdx/exec-process (format "sh -c \"cd %s; sfdx force:source:retrieve --sourcepath ./force-app/main/default/%s --loglevel fatal\"" cd-dir comp-name) "sfdx:retrieve_project" t)
           (message "Cancelled")
           )))))
 
@@ -112,36 +124,11 @@
 (defun sfdx/deploy-component-or-project ()
   "Deploy the current component or project to target."
   (interactive)
-  (let ((current-folder (file-name-nondirectory
-                         (directory-file-name
-                          (file-name-directory (buffer-file-name))))))
-    (if (locate-dominating-file buffer-file-name "lwc")
-        (prog1
-            ;; Possibly in a component folder, but lets makes sure its not just the LWC folder.
-            (if (string= current-folder "lwc")
-                (prog1
-                    ;; Not in a component, deploy project.
-                    ;; (message "Deploying Project...")
-                    (sfdx--deploy nil current-folder))
-              ;; In a component, deploy component.
-              ;; (message "Deploying Component...")
-              (sfdx--deploy nil current-folder)))
-
-      (prog1
-          ;; Are we in a project?
-          (if (locate-dominating-file buffer-file-name "force-app")
-              (prog1
-                  ;; In project, deploy folder.
-                  ;; (message "Deploying folder...")
-                  (sfdx--deploy nil current-folder))
-            (prog1
-                ;; Not in an SFDX project.
-                (message "You are not in a component folder or an SFDX project!"))
-            )
-        )
-      )
-    )
-  )
+  (let ((in-proj? (locate-dominating-file buffer-file-name "force-app"))
+        (sfdx-dir (f-relative (buffer-file-name) (f-full (locate-dominating-file (buffer-file-name) "force-app")))))
+    (if in-proj?
+        (sfdx--deploy nil sfdx-dir)
+      (message "Not in an SFDX project"))))
 
 (defun sfdx/retrieve-component ()
   "Retrieve the source for the current component (destructively overwrites)."
@@ -180,14 +167,14 @@
 (define-transient-command sfdx/transient-action ()
   "SFDX CLI Actions"
   ["Project Specific"
-   ("P" "Create New Project"  sfdx/create-project)]
+   ("P" "Create New Project"         sfdx/create-project)]
   ["Create Component"
-   ("n" "create new"          sfdx/create-component)]
+   ("n" "create new"                 sfdx/create-component)]
   ["Actions for this Component"
-   ("d" "deploy"              sfdx/deploy-component-or-project)
-   ("r" "retrieve"            sfdx/retrieve-component)]
+   ("d" "deploy"                     sfdx/deploy-component-or-project)
+   ("r" "retrieve"                   sfdx/retrieve-component)]
   ["Download Component"
-   ("f" "fetch by component name"   sfdx/fetch-component)])
+   ("f" "fetch by component name"    sfdx/fetch-component)])
 
 (provide 'emacs-sfdx)
 ;;; emacs-sfdx.el ends here
